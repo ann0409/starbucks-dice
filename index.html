@@ -73,7 +73,6 @@
         import { Coffee, Star, Gift, RotateCcw, Trash2, Info, X, Crown, Ticket, PlusCircle, Sparkles, AlertCircle, Image as ImageIcon, ChevronLeft, Clock, CheckCircle, Share2, Bell, Copy, ExternalLink, BookOpen, Lock, Volume2, VolumeX, Palette, ChevronRight, ShoppingBag } from 'lucide-react';
 
         // --- 設定區 ---
-        const CUTE_BEAR_IMG = "https://drive.google.com/uc?export=view&id=16Hf5ldizJ4fUn5ZRnX4HFJaEgrVJGF46";
         const STARBUCKS_LOGO = "https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/Starbucks_Corporation_Logo_2011.svg/1200px-Starbucks_Corporation_Logo_2011.svg.png";
 
         // 主題設定
@@ -84,15 +83,15 @@
             gold: { name: "黑金尊爵", colors: { primary: "#cba258", primaryHover: "#b08d55", bg: "#121212", text: "#cba258", accentBg: "#1a1a1a", icon: "#000000", border: "#cba258" } }
         };
 
-        // 獎品資料 (包含 ID 對照，用於還原圖片)
+        // 獎品資料 (修正：將 ID 999 納入資料庫以便還原，並移除熊大圖片)
         const PRIZES = [
             { id: 1, label: "超級幸運：一年飲品兌換券", icon: <Crown className="w-8 h-8" />, color: "text-yellow-600", bg: "bg-yellow-100", description: "太不可思議了！獲得「超級幸運」大獎。" },
             { id: 2, label: "聯名迷你馬克杯", icon: <Coffee className="w-8 h-8" />, color: "text-red-600", bg: "bg-red-100", description: "與 LINE FRIENDS 聯名推出的限量迷你馬克杯！" },
-            { id: 3, label: "熊大造型骰子杯套", icon: <Gift className="w-8 h-8" />, color: "text-amber-800", bg: "bg-amber-100", description: "可愛爆擊！LINE FRIENDS 熊大造型的專屬杯套。", image: CUTE_BEAR_IMG },
+            { id: 3, label: "熊大造型骰子杯套", icon: <Gift className="w-8 h-8" />, color: "text-amber-800", bg: "bg-amber-100", description: "可愛爆擊！LINE FRIENDS 熊大造型的專屬杯套。" }, // Removed image
             { id: 4, label: "任選飲品兌換券", icon: <Ticket className="w-8 h-8" />, color: "text-green-700", bg: "bg-green-100", description: "恭喜獲得免費飲品一杯！" },
             { id: 5, label: "免費加料券", icon: <PlusCircle className="w-8 h-8" />, color: "text-blue-600", bg: "bg-blue-100", description: "購買任一飲料，可免費添加一份配料。" },
             { id: 6, label: "飲品免費升級", icon: <RotateCcw className="w-8 h-8" />, color: "text-orange-600", bg: "bg-orange-100", description: "購買任一飲料，可享免費升級容量。" },
-            // 特別獎 (新手禮)
+            // 特別獎 (新手禮) - 加入此項以防止讀取舊紀錄時因找不到 ID 而報錯或無法顯示圖示
             { id: 999, label: "新手見面禮：買一送一", icon: <Gift className="w-8 h-8" />, color: "text-red-500", bg: "bg-red-100", description: "歡迎來到星巴克幸運骰！这是您的見面禮。" }
         ];
 
