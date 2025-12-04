@@ -84,6 +84,7 @@
             gold: { name: "黑金尊爵", colors: { primary: "#cba258", primaryHover: "#b08d55", bg: "#121212", text: "#cba258", accentBg: "#1a1a1a", icon: "#000000", border: "#cba258" } }
         };
 
+        // 獎品資料 (包含 ID 對照，用於還原圖片)
         const PRIZES = [
             { id: 1, label: "超級幸運：一年飲品兌換券", icon: <Crown className="w-8 h-8" />, color: "text-yellow-600", bg: "bg-yellow-100", description: "太不可思議了！獲得「超級幸運」大獎。" },
             { id: 2, label: "聯名迷你馬克杯", icon: <Coffee className="w-8 h-8" />, color: "text-red-600", bg: "bg-red-100", description: "與 LINE FRIENDS 聯名推出的限量迷你馬克杯！" },
@@ -91,6 +92,8 @@
             { id: 4, label: "任選飲品兌換券", icon: <Ticket className="w-8 h-8" />, color: "text-green-700", bg: "bg-green-100", description: "恭喜獲得免費飲品一杯！" },
             { id: 5, label: "免費加料券", icon: <PlusCircle className="w-8 h-8" />, color: "text-blue-600", bg: "bg-blue-100", description: "購買任一飲料，可免費添加一份配料。" },
             { id: 6, label: "飲品免費升級", icon: <RotateCcw className="w-8 h-8" />, color: "text-orange-600", bg: "bg-orange-100", description: "購買任一飲料，可享免費升級容量。" },
+            // 特別獎 (新手禮)
+            { id: 999, label: "新手見面禮：買一送一", icon: <Gift className="w-8 h-8" />, color: "text-red-500", bg: "bg-red-100", description: "歡迎來到星巴克幸運骰！这是您的見面禮。" }
         ];
 
         const FAKE_WINNERS = ["陳*豪 獲得 買一送一", "Amy L. 獲得 熊大杯套", "王*明 獲得 免費升級", "Kevin 獲得 迷你馬克杯", "林*婷 獲得 買一送一", "Jason 獲得 熊大杯套"];
@@ -159,6 +162,9 @@
         };
 
         const triggerHaptic = (pattern = [10]) => { if (navigator.vibrate) navigator.vibrate(pattern); };
+
+        // Helper: Get Prize details by ID (to restore icons/images from storage)
+        const getPrizeById = (id) => PRIZES.find(p => p.id === id) || PRIZES[3]; // Default to free drink if not found
 
         // Components
         const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
@@ -274,17 +280,24 @@
                             ) : (
                                 <>
                                     <div className="flex justify-end mb-2"><button onClick={onDelete} className="text-xs text-red-500 flex items-center px-2 py-1 rounded hover:bg-red-50 border border-red-100 transition-colors"><Trash2 className="w-3 h-3 mr-1" /> 清空背包</button></div>
-                                    {history.map((item, index) => (
-                                        <div key={item.uuid || index} className={`bg-white p-3 rounded-lg border-l-4 shadow-sm transition-all active:scale-95 ${item.isUsed ? 'opacity-60 grayscale border-gray-300' : ''}`} style={{ borderLeftColor: item.isUsed ? undefined : theme.colors.primary }} onClick={() => !item.isUsed && onSelect(item)}>
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex items-center space-x-2">
-                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">{item.image ? <ImageWithFallback src={item.image} className="w-full h-full object-cover" fallbackIcon={item.icon}/> : item.icon}</div>
-                                                    <div><h4 className={`font-bold text-xs ${item.isUsed ? 'line-through text-gray-500' : 'text-gray-800'}`}>{item.label}</h4><span className="text-[10px] text-gray-400 block">{item.timestamp}</span></div>
+                                    {history.map((item, index) => {
+                                        // 智慧還原：根據 ID 找回正確的圖片/圖示
+                                        const originalPrize = PRIZES.find(p => p.id === item.id) || item;
+                                        return (
+                                            <div key={item.uuid || index} className={`bg-white p-3 rounded-lg border-l-4 shadow-sm transition-all active:scale-95 ${item.isUsed ? 'opacity-60 grayscale border-gray-300' : ''}`} style={{ borderLeftColor: item.isUsed ? undefined : theme.colors.primary }} onClick={() => !item.isUsed && onSelect(item)}>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex items-center space-x-2">
+                                                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                                                            {/* 使用原始資料的圖片/圖示，確保不會因為 LocalStorage 而消失 */}
+                                                            {originalPrize.image ? <ImageWithFallback src={originalPrize.image} className="w-full h-full object-cover" fallbackIcon={originalPrize.icon}/> : originalPrize.icon}
+                                                        </div>
+                                                        <div><h4 className={`font-bold text-xs ${item.isUsed ? 'line-through text-gray-500' : 'text-gray-800'}`}>{item.label}</h4><span className="text-[10px] text-gray-400 block">{item.timestamp}</span></div>
+                                                    </div>
                                                 </div>
+                                                {item.isUsed ? <div className="text-[10px] text-center bg-gray-100 py-1 rounded text-gray-500">已兌換</div> : <div className="text-[10px] text-center py-1 rounded text-white font-bold" style={{ backgroundColor: theme.colors.primary }}>點擊兌換</div>}
                                             </div>
-                                            {item.isUsed ? <div className="text-[10px] text-center bg-gray-100 py-1 rounded text-gray-500">已兌換</div> : <div className="text-[10px] text-center py-1 rounded text-white font-bold" style={{ backgroundColor: theme.colors.primary }}>點擊兌換</div>}
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </>
                             )}
                         </div>
@@ -385,25 +398,45 @@
                 }
             }, [stars, displayStars]);
 
+            // 統一資料存取 Key (避免改版後資料遺失)
+            const STORAGE_KEY = 'starbucks_dice_data_master';
+
             useEffect(() => {
                 try {
-                    const savedHistory = localStorage.getItem('starbucks_all_history_v18');
-                    if (savedHistory) setAllHistory(JSON.parse(savedHistory));
-                    const savedCollection = localStorage.getItem('starbucks_collection_final_v18');
-                    if (savedCollection) setUnlockedIds(JSON.parse(savedCollection));
-                    const savedStars = localStorage.getItem('starbucks_stars_final_v18');
-                    if (savedStars) { const s = parseInt(savedStars); setStars(s); setDisplayStars(s); }
-                    const savedTheme = localStorage.getItem('starbucks_theme_pref_final_v18');
-                    if (savedTheme && THEMES[savedTheme]) setCurrentThemeKey(savedTheme);
+                    const savedData = localStorage.getItem(STORAGE_KEY);
+                    if (savedData) {
+                        const data = JSON.parse(savedData);
+                        setAllHistory(data.history || []);
+                        setUnlockedIds(data.unlockedIds || []);
+                        setStars(data.stars || 0);
+                        if (data.theme && THEMES[data.theme]) setCurrentThemeKey(data.theme);
+                    } else {
+                        // 初始化：送新手禮
+                        const welcomeGift = {
+                            id: 999, // 對應 PRIZES 中的 ID
+                            label: "新手見面禮：買一送一",
+                            icon: <Gift className="w-8 h-8" />, // 這行存進去會變 null，但沒關係，我們有還原機制
+                            color: "text-red-500",
+                            bg: "bg-red-100",
+                            description: "歡迎來到星巴克幸運骰！这是您的見面禮。",
+                            timestamp: new Date().toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                            uuid: "WELCOME-GIFT",
+                            isUsed: false
+                        };
+                        setAllHistory([welcomeGift]);
+                    }
                 } catch (e) {}
             }, []);
 
             useEffect(() => {
                 try {
-                    localStorage.setItem('starbucks_all_history_v18', JSON.stringify(allHistory));
-                    localStorage.setItem('starbucks_collection_final_v18', JSON.stringify(unlockedIds));
-                    localStorage.setItem('starbucks_stars_final_v18', stars.toString());
-                    localStorage.setItem('starbucks_theme_pref_final_v18', currentThemeKey);
+                    const data = {
+                        history: allHistory,
+                        unlockedIds: unlockedIds,
+                        stars: stars,
+                        theme: currentThemeKey
+                    };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
                 } catch (e) {}
             }, [allHistory, unlockedIds, stars, currentThemeKey]);
 
@@ -543,6 +576,10 @@
                 const [timeLeft, setTimeLeft] = useState(600);
                 useEffect(() => { const timer = setInterval(() => { setTimeLeft(prev => (prev > 0 ? prev - 1 : 0)); }, 1000); return () => clearInterval(timer); }, []);
                 const formatTime = (seconds) => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+                
+                // 兌換頁還原圖片邏輯
+                const originalPrize = PRIZES.find(p => p.id === coupon.id) || coupon;
+                
                 return (
                 <div className="absolute inset-0 z-[60] bg-white flex flex-col animate-slideUp">
                     <div className="p-4 pt-8 flex items-center shadow-md" style={{ backgroundColor: theme.colors.primary, color: theme.colors.icon }}>
@@ -554,7 +591,9 @@
                     <div className="bg-white w-full rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-6 relative">
                         <div className="h-2 bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${theme.colors.primary}, ${currentThemeKey === 'gold' ? '#1a1a1a' : '#1e3932'})` }}></div>
                         <div className="p-6 flex flex-col items-center text-center">
-                            <div className="w-32 h-32 mb-4 rounded-full bg-gray-50 flex items-center justify-center overflow-hidden border-4 border-gray-100 shadow-sm">{coupon.image ? <img src={coupon.image} className="w-full h-full object-cover" /> : <div className={coupon.color}>{coupon.icon}</div>}</div>
+                            <div className="w-32 h-32 mb-4 rounded-full bg-gray-50 flex items-center justify-center overflow-hidden border-4 border-gray-100 shadow-sm">
+                                {originalPrize.image ? <ImageWithFallback src={originalPrize.image} className="w-full h-full object-cover" fallbackIcon={originalPrize.icon}/> : <div className={originalPrize.color}>{originalPrize.icon}</div>}
+                            </div>
                             <h3 className="text-xl font-bold text-gray-800 mb-2">{coupon.label}</h3>
                             <p className="text-sm text-gray-500 mb-6 px-4">{coupon.description}</p>
                             <div className="w-full bg-white p-3 rounded-lg mb-4 relative overflow-hidden border border-dashed border-gray-300"><div className="flex flex-col items-center justify-center min-h-[60px]"><BarcodeImage code={coupon.uuid} /><p className="font-mono text-xs text-center mt-1 tracking-[0.3em] text-gray-600">{coupon.uuid}</p></div></div>
@@ -635,20 +674,24 @@
                                 <h3 className="font-bold text-sm text-gray-700 flex items-center"><Gift className="w-4 h-4 mr-2" style={{ color: theme.colors.text }} /> 本次抽獎結果</h3>
                             </div>
                             <div className="p-2 space-y-2">
-                            {history.map((item) => (
-                                <div key={item.uuid} className={`flex bg-white border border-l-4 rounded-r-md p-3 shadow-sm relative overflow-hidden transition-opacity ${item.isUsed ? 'border-gray-400 opacity-50' : ''}`} style={{ borderLeftColor: item.isUsed ? undefined : theme.colors.primary }}>
-                                <div className="flex-shrink-0 mr-3 flex items-center justify-center w-12 h-12 rounded-md overflow-hidden bg-gray-50">{item.image ? <ImageWithFallback src={item.image} className="w-full h-full object-cover" fallbackIcon={item.icon}/> : <div className={item.color}>{item.icon}</div>}</div>
-                                <div className="flex-grow">
-                                    <p className={`font-bold text-sm ${item.isUsed ? 'text-gray-500 line-through' : ''}`} style={{ color: item.isUsed ? undefined : theme.colors.text }}>{item.label}</p>
-                                    <p className="text-[10px] text-gray-400 mt-1">{item.isUsed ? '已於 ' + new Date().toLocaleDateString() + ' 兌換' : `期限: ${new Date(Date.now() + 86400000 * 2).toLocaleDateString()}`}</p>
-                                </div>
-                                {!item.isUsed && (
-                                    <button onClick={(e) => { play('click'); e.stopPropagation(); setSelectedCoupon(item); }} className="absolute right-0 top-0 bottom-0 w-12 bg-green-50 hover:bg-green-100 flex items-center justify-center border-l border-dashed border-green-200 cursor-pointer transition-colors group z-10" title="開啟兌換頁">
-                                        <span className="text-[10px] font-bold writing-vertical group-active:scale-95 select-none" style={{ color: theme.colors.text }}>兌換</span>
-                                    </button>
-                                )}
-                                </div>
-                            ))}
+                            {history.map((item) => {
+                                // 確保主畫面清單也能正確顯示圖片
+                                const originalPrize = PRIZES.find(p => p.id === item.id) || item;
+                                return (
+                                    <div key={item.uuid} className={`flex bg-white border border-l-4 rounded-r-md p-3 shadow-sm relative overflow-hidden transition-opacity ${item.isUsed ? 'border-gray-400 opacity-50' : ''}`} style={{ borderLeftColor: item.isUsed ? undefined : theme.colors.primary }}>
+                                        <div className="flex-shrink-0 mr-3 flex items-center justify-center w-12 h-12 rounded-md overflow-hidden bg-gray-50">{originalPrize.image ? <ImageWithFallback src={originalPrize.image} className="w-full h-full object-cover" fallbackIcon={originalPrize.icon}/> : <div className={originalPrize.color}>{originalPrize.icon}</div>}</div>
+                                        <div className="flex-grow">
+                                            <p className={`font-bold text-sm ${item.isUsed ? 'text-gray-500 line-through' : ''}`} style={{ color: item.isUsed ? undefined : theme.colors.text }}>{item.label}</p>
+                                            <p className="text-[10px] text-gray-400 mt-1">{item.isUsed ? '已於 ' + new Date().toLocaleDateString() + ' 兌換' : `期限: ${new Date(Date.now() + 86400000 * 2).toLocaleDateString()}`}</p>
+                                        </div>
+                                        {!item.isUsed && (
+                                            <button onClick={(e) => { play('click'); e.stopPropagation(); setSelectedCoupon(item); }} className="absolute right-0 top-0 bottom-0 w-12 bg-green-50 hover:bg-green-100 flex items-center justify-center border-l border-dashed border-green-200 cursor-pointer transition-colors group z-10" title="開啟兌換頁">
+                                                <span className="text-[10px] font-bold writing-vertical group-active:scale-95 select-none" style={{ color: theme.colors.text }}>兌換</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
                             </div>
                         </div>
                         )}
