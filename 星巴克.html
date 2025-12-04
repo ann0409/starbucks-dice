@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>星巴克幸運骰 | LINE FRIENDS</title>
+    <meta name="theme-color" content="#ffffff">
+    
+    <!-- Tailwind CSS (排版) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Babel (解析 React) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Import Map (設定套件來源) -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.263.1"
+      }
+    }
+    </script>
+
+    <style>
+        /* 動畫定義 */
+        @keyframes spin-fast { 0% { transform: rotate(0deg) scale(1); } 100% { transform: rotate(360deg) scale(1); } }
+        .animate-spin-fast { animation: spin-fast 0.3s linear infinite; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .animate-slideUp { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .animate-shimmer { animation: shimmer 2s infinite; }
+        @keyframes scaleUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-scaleUp { animation: scaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes slideUpFade { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-slideUpFade { animation: slideUpFade 0.5s ease-out forwards; }
+        @keyframes swing { 0% { transform: rotate(0deg); } 20% { transform: rotate(15deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(5deg); } 80% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
+        .animate-swing { animation: swing 2s infinite; }
+        @keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        .animate-bounce-slow { animation: bounce-slow 2s infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(10deg); } }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        @keyframes confetti { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(800px) rotate(720deg); opacity: 0; } }
+        .animate-confetti { animation: confetti 3s ease-out forwards; }
+        @keyframes tumble { 0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); } 100% { transform: rotateX(360deg) rotateY(720deg) rotateZ(360deg); } }
+        .animate-tumble { animation: tumble 0.6s linear infinite; }
+        @keyframes fly-star { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100px) scale(1.5); opacity: 0; } }
+        .animate-fly-star { animation: fly-star 0.8s ease-out forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .animate-slideInRight { animation: slideInRight 0.3s ease-out forwards; }
+
+        /* 3D 骰子樣式 */
+        .preserve-3d { transform-style: preserve-3d; }
+        .perspective-1000 { perspective: 1000px; }
+        .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        
+        /* 通用樣式 */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f3f4f6; }
+        .writing-vertical { writing-mode: vertical-rl; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { Coffee, Star, Gift, RotateCcw, Trash2, Info, X, Crown, Ticket, PlusCircle, Sparkles, AlertCircle, Image as ImageIcon, ChevronLeft, Clock, CheckCircle, Share2, Bell, Copy, ExternalLink, BookOpen, Lock, Volume2, VolumeX, Palette, ChevronRight, ShoppingBag } from 'lucide-react';
+
+        // --- 設定區 ---
+        // 熊大圖片已移除，使用預設圖示
+        const STARBUCKS_LOGO = "https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/Starbucks_Corporation_Logo_2011.svg/1200px-Starbucks_Corporation_Logo_2011.svg.png";
+
+        // 主題設定
+        const THEMES = {
+            classic: { name: "經典綠", colors: { primary: "#006241", primaryHover: "#004f35", bg: "#f1f8f6", text: "#006241", accentBg: "#dcfce7", icon: "#ffffff", border: "#006241" } },
+            sakura: { name: "櫻花粉", colors: { primary: "#ff9a9e", primaryHover: "#ff758c", bg: "#fff0f5", text: "#ff758c", accentBg: "#ffe4e6", icon: "#ffffff", border: "#ff9a9e" } },
+            holiday: { name: "耶誕紅", colors: { primary: "#d62828", primaryHover: "#a01a1a", bg: "#fdf0f0", text: "#d62828", accentBg: "#fee2e2", icon: "#ffffff", border: "#d62828" } },
+            gold: { name: "黑金尊爵", colors: { primary: "#cba258", primaryHover: "#b08d55", bg: "#121212", text: "#cba258", accentBg: "#1a1a1a", icon: "#000000", border: "#cba258" } }
+        };
+
+        const PRIZES = [
+            { id: 1, label: "超級幸運：一年飲品兌換券", icon: <Crown className="w-8 h-8" />, color: "text-yellow-600", bg: "bg-yellow-100", description: "太不可思議了！獲得「超級幸運」大獎。" },
+            { id: 2, label: "聯名迷你馬克杯", icon: <Coffee className="w-8 h-8" />, color: "text-red-600", bg: "bg-red-100", description: "與 LINE FRIENDS 聯名推出的限量迷你馬克杯！" },
+            { id: 3, label: "熊大造型骰子杯套", icon: <Gift className="w-8 h-8" />, color: "text-amber-800", bg: "bg-amber-100", description: "可愛爆擊！LINE FRIENDS 熊大造型的專屬杯套。" },
+            { id: 4, label: "任選飲品兌換券", icon: <Ticket className="w-8 h-8" />, color: "text-green-700", bg: "bg-green-100", description: "恭喜獲得免費飲品一杯！" },
+            { id: 5, label: "免費加料券", icon: <PlusCircle className="w-8 h-8" />, color: "text-blue-600", bg: "bg-blue-100", description: "購買任一飲料，可免費添加一份配料。" },
+            { id: 6, label: "飲品免費升級", icon: <RotateCcw className="w-8 h-8" />, color: "text-orange-600", bg: "bg-orange-100", description: "購買任一飲料，可享免費升級容量。" },
+        ];
+
+        const FAKE_WINNERS = ["陳*豪 獲得 買一送一", "Amy L. 獲得 熊大杯套", "王*明 獲得 免費升級", "Kevin 獲得 迷你馬克杯", "林*婷 獲得 買一送一", "Jason 獲得 熊大杯套"];
+
+        // --- 全新音效引擎 (Web Audio API) ---
+        const playSound = (type) => {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const now = ctx.currentTime;
+
+            const createOsc = (freq, type, startTime, duration, gainVal) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(gainVal, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            };
+
+            if (type === 'click') { 
+                // 木魚/響板聲
+                createOsc(800, 'sine', now, 0.1, 0.1);
+            }
+            else if (type === 'roll') { 
+                // 骰子碰撞聲
+                for(let i=0; i<3; i++) {
+                    createOsc(200 + Math.random()*300, 'triangle', now + i*0.03, 0.05, 0.05);
+                }
+            }
+            else if (type === 'win') { 
+                // 中獎：豎琴琶音
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    createOsc(freq, 'sine', now + i * 0.08, 1.0, 0.08);
+                });
+            }
+            else if (type === 'success') { 
+                // 兌換成功：收銀機聲
+                createOsc(1500, 'sine', now, 0.1, 0.1);
+                createOsc(2000, 'sine', now + 0.1, 0.4, 0.1);
+            }
+            else if (type === 'stars') { 
+                // 星星飛入
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.linearRampToValueAtTime(1800, now + 0.3);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+            else if (type === 'gold') {
+                 // 隱藏版金幣音效
+                [400, 600, 800, 1200].forEach((freq, i) => {
+                    createOsc(freq, 'square', now + i * 0.05, 0.3, 0.05);
+                });
+            }
+        };
+
+        const triggerHaptic = (pattern = [10]) => { if (navigator.vibrate) navigator.vibrate(pattern); };
+
+        // Components
+        const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-[280px] p-6 text-center animate-scaleUp">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><Trash2 className="w-8 h-8 text-red-500" /></div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-2">{title}</h3>
+                        <p className="text-sm text-gray-500 mb-6">{message}</p>
+                        <div className="flex space-x-3">
+                            <button onClick={onCancel} className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg font-bold hover:bg-gray-200 transition-colors">取消</button>
+                            <button onClick={onConfirm} className="flex-1 py-2 bg-red-500 text-white rounded-lg font-bold shadow-md hover:bg-red-600 transition-colors">確認清空</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SplashScreen = ({ onFinish }) => {
+            const [opacity, setOpacity] = useState(1);
+            useEffect(() => { const timer = setTimeout(() => { setOpacity(0); setTimeout(onFinish, 1000); }, 2500); return () => clearTimeout(timer); }, []);
+            if (opacity === 0) return null;
+            return (
+                <div className="absolute inset-0 z-[100] bg-[#006241] flex flex-col items-center justify-center transition-opacity duration-1000" style={{ opacity }}>
+                    <div className="animate-bounce-slow flex flex-col items-center justify-center h-full">
+                        <div className="bg-white p-1 rounded-full shadow-2xl mb-6 animate-pulse"><img src={STARBUCKS_LOGO} alt="Starbucks Logo" className="w-32 h-32 object-contain rounded-full" onError={(e) => e.target.style.display = 'none'} /></div>
+                        <h1 className="text-white text-xl font-bold tracking-[0.3em] animate-fadeIn delay-500">STARBUCKS</h1>
+                        <p className="text-green-200 text-xs mt-2 tracking-widest uppercase">Rewards</p>
+                    </div>
+                </div>
+            );
+        };
+
+        const CubeDice = ({ face, isRolling, theme }) => {
+            const rotations = { 1: 'rotateX(0deg) rotateY(0deg)', 2: 'rotateX(0deg) rotateY(-90deg)', 3: 'rotateX(0deg) rotateY(180deg)', 4: 'rotateX(0deg) rotateY(90deg)', 5: 'rotateX(-90deg) rotateY(0deg)', 6: 'rotateX(90deg) rotateY(0deg)' };
+            return (
+                <div className="w-32 h-32 perspective-1000" style={{ perspective: '1000px' }}>
+                    <div className={`w-full h-full relative preserve-3d transition-transform duration-500 ease-out ${isRolling ? 'animate-tumble' : ''}`} style={{ transformStyle: 'preserve-3d', transform: isRolling ? 'none' : rotations[face] }}>
+                        {[1, 2, 3, 4, 5, 6].map(num => (
+                            <div key={num} className={`absolute w-full h-full bg-white border-2 rounded-xl flex items-center justify-center shadow-inner backface-hidden`} style={{ borderColor: theme.colors.border, transform: getFaceTransform(num), backfaceVisibility: 'hidden', boxShadow: 'inset 0 0 15px rgba(0,0,0,0.1)' }}>
+                                <DiceDots number={num} theme={theme} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+        const getFaceTransform = (num) => {
+            switch(num) { case 1: return 'translateZ(64px)'; case 2: return 'rotateY(90deg) translateZ(64px)'; case 3: return 'rotateY(180deg) translateZ(64px)'; case 4: return 'rotateY(-90deg) translateZ(64px)'; case 5: return 'rotateX(90deg) translateZ(64px)'; case 6: return 'rotateX(-90deg) translateZ(64px)'; default: return ''; }
+        };
+        const DiceDots = ({ number, theme }) => {
+            const dotStyle = { backgroundColor: theme.name === '黑金尊爵' ? '#cba258' : '#00704A' };
+            const dots = Array.from({ length: 9 }).map((_, i) => {
+                const show = ((number === 1 && i === 4) || (number === 2 && (i === 0 || i === 8)) || (number === 3 && (i === 0 || i === 4 || i === 8)) || (number === 4 && (i === 0 || i === 2 || i === 6 || i === 8)) || (number === 5 && (i === 0 || i === 2 || i === 4 || i === 6 || i === 8)) || (number === 6 && (i === 0 || i === 2 || i === 3 || i === 5 || i === 6 || i === 8)));
+                return <div key={i} className="flex items-center justify-center">{show && <div className="w-3 h-3 md:w-4 md:h-4 rounded-full shadow-sm" style={dotStyle} />}</div>;
+            });
+            return <div className="grid grid-cols-3 grid-rows-3 gap-1 w-20 h-20 p-1">{dots}</div>;
+        };
+
+        const FloatingParticles = ({ theme }) => {
+            if (theme.name === '黑金尊爵') return null; 
+            const iconStyle = { color: theme.colors.primary, opacity: 0.15 };
+            return (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                    {[...Array(8)].map((_, i) => (
+                        <div key={i} className="absolute animate-float" style={{ left: `${Math.random() * 90}%`, top: `${Math.random() * 80 + 10}%`, animationDelay: `${i * 1.5}s`, animationDuration: `${8 + Math.random() * 8}s`, ...iconStyle }}>
+                            {i % 2 === 0 ? <Star size={24 + Math.random() * 24} /> : <Coffee size={24 + Math.random() * 24} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const MemberCardModal = ({ stars, onClose, theme }) => {
+            const isGold = stars >= 168;
+            const nextLevel = isGold ? 999 : 168;
+            const progress = Math.min((stars / nextLevel) * 100, 100);
+            const starsNeeded = nextLevel - stars;
+            return (
+                <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 backdrop-blur-sm animate-fadeIn" onClick={onClose}>
+                    <div className="w-full max-w-xs animate-scaleUp" onClick={e => e.stopPropagation()}>
+                        <div className={`relative rounded-2xl shadow-2xl overflow-hidden p-6 text-white mb-4 h-48 flex flex-col justify-between transition-all duration-500`} style={{ background: isGold ? 'linear-gradient(135deg, #cba258 0%, #b08d55 100%)' : 'linear-gradient(135deg, #006241 0%, #1e3932 100%)', boxShadow: isGold ? '0 10px 30px rgba(203, 162, 88, 0.4)' : '0 10px 30px rgba(0, 98, 65, 0.4)' }}>
+                            <div className="absolute top-0 right-0 opacity-10 transform translate-x-1/3 -translate-y-1/3"><Star size={200} /></div>
+                            <div className="flex justify-between items-start relative z-10"><div className="flex items-center space-x-2"><Coffee className="w-5 h-5" /><span className="text-xs font-bold tracking-widest">STARBUCKS REWARDS</span></div><span className="text-xs border border-white px-2 py-0.5 rounded-full opacity-80">{isGold ? 'Gold Level' : 'Green Level'}</span></div>
+                            <div className="relative z-10"><div className="text-3xl font-bold mb-1 flex items-baseline">{stars}<span className="text-sm ml-1 font-normal opacity-80">★</span></div><div className="w-full bg-black bg-opacity-20 h-1.5 rounded-full mb-2 overflow-hidden"><div className="h-full bg-white rounded-full transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div></div><p className="text-xs opacity-90">{isGold ? '您已是尊爵金星會員' : `再集 ${starsNeeded} 星即可升級金星級`}</p></div>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 shadow-lg text-center">
+                            <h3 className="text-sm font-bold text-gray-800 mb-2">會員權益</h3>
+                            <div className="grid grid-cols-3 gap-2 text-xs text-gray-500">
+                                <div className="flex flex-col items-center p-2 bg-gray-50 rounded-lg"><Gift className="w-5 h-5 mb-1 text-green-600" /><span>生日禮</span></div>
+                                <div className="flex flex-col items-center p-2 bg-gray-50 rounded-lg"><RotateCcw className="w-5 h-5 mb-1 text-blue-500" /><span>免費升級</span></div>
+                                <div className="flex flex-col items-center p-2 bg-gray-50 rounded-lg"><Star className={`w-5 h-5 mb-1 ${isGold ? 'text-yellow-500' : 'text-gray-300'}`} /><span>專屬回饋</span></div>
+                            </div>
+                            <button onClick={onClose} className="mt-4 w-full py-2 text-sm font-bold text-gray-500 hover:bg-gray-50 rounded-lg transition-colors">關閉</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const BagModal = ({ history, onClose, onSelect, theme, onDelete }) => {
+            return (
+                <div className="absolute inset-0 z-50 flex items-center justify-end bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn">
+                    <div className="w-3/4 max-w-[300px] h-full bg-white shadow-2xl animate-slideInRight flex flex-col">
+                        <div className="p-4 border-b flex justify-between items-center" style={{ backgroundColor: 'white', color: theme.colors.text }}>
+                            <h3 className="font-bold text-lg flex items-center"><ShoppingBag className="w-5 h-5 mr-2" /> 我的背包</h3>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
+                            {history.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-gray-400"><ShoppingBag className="w-12 h-12 mb-2 opacity-20" /><p className="text-sm">背包空空的</p><p className="text-xs">快去試試手氣吧！</p></div>
+                            ) : (
+                                <>
+                                    <div className="flex justify-end mb-2"><button onClick={onDelete} className="text-xs text-red-500 flex items-center px-2 py-1 rounded hover:bg-red-50 border border-red-100 transition-colors"><Trash2 className="w-3 h-3 mr-1" /> 清空背包</button></div>
+                                    {history.map((item, index) => (
+                                        <div key={item.uuid || index} className={`bg-white p-3 rounded-lg border-l-4 shadow-sm transition-all active:scale-95 ${item.isUsed ? 'opacity-60 grayscale border-gray-300' : ''}`} style={{ borderLeftColor: item.isUsed ? undefined : theme.colors.primary }} onClick={() => !item.isUsed && onSelect(item)}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center space-x-2">
+                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">{item.image ? <ImageWithFallback src={item.image} className="w-full h-full object-cover" fallbackIcon={item.icon}/> : item.icon}</div>
+                                                    <div><h4 className={`font-bold text-xs ${item.isUsed ? 'line-through text-gray-500' : 'text-gray-800'}`}>{item.label}</h4><span className="text-[10px] text-gray-400 block">{item.timestamp}</span></div>
+                                                </div>
+                                            </div>
+                                            {item.isUsed ? <div className="text-[10px] text-center bg-gray-100 py-1 rounded text-gray-500">已兌換</div> : <div className="text-[10px] text-center py-1 rounded text-white font-bold" style={{ backgroundColor: theme.colors.primary }}>點擊兌換</div>}
+                                        </div>
+                                    ))}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const FlyingStar = ({ onComplete }) => {
+            return (
+                <div className="absolute z-50 text-yellow-400 animate-fly-star pointer-events-none" onAnimationEnd={onComplete} style={{ left: '50%', bottom: '20%' }}><Star className="w-6 h-6 fill-current" /><span className="absolute -right-4 -top-2 text-xs font-bold text-yellow-500">+10</span></div>
+            );
+        };
+
+        const Marquee = ({ theme }) => {
+            const [index, setIndex] = useState(0);
+            useEffect(() => { const interval = setInterval(() => { setIndex(prev => (prev + 1) % FAKE_WINNERS.length); }, 3000); return () => clearInterval(interval); }, []);
+            const bgStyle = { backgroundColor: theme.colors.primary === '#cba258' ? '#cba258' : '#1e3932' };
+            const textClass = theme.colors.primary === '#cba258' ? 'text-black' : 'text-white';
+            return (
+                <div className={`bg-opacity-90 ${textClass} text-xs py-1 px-4 flex items-center justify-center overflow-hidden absolute top-0 w-full z-30 backdrop-blur-sm pointer-events-none transition-colors duration-500`} style={bgStyle}>
+                    <Bell className="w-3 h-3 mr-2 animate-swing" />
+                    <div className="animate-slideUpFade key={index}">恭喜 <span className="font-bold">{FAKE_WINNERS[index]}</span></div>
+                </div>
+            );
+        };
+
+        const CssBarcode = () => (<div className="w-full h-16 flex justify-center items-stretch overflow-hidden bg-white px-4">{Array.from({ length: 40 }).map((_, i) => (<div key={i} style={{ width: Math.random() > 0.6 ? '4px' : '2px', height: '100%', backgroundColor: '#000', marginLeft: Math.random() > 0.5 ? '1px' : '2px', marginRight: Math.random() > 0.5 ? '1px' : '2px' }} />))}</div>);
+
+        const SuccessAnimation = ({ theme }) => (
+            <div className="absolute inset-0 z-[70] bg-black bg-opacity-70 flex items-center justify-center animate-fadeIn">
+                <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center animate-scaleUp max-w-xs w-full mx-4 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gray-50 opacity-50 z-0"></div>
+                    <div className="relative z-10 flex flex-col items-center">
+                        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-4 bg-gray-100"><CheckCircle className="w-12 h-12 animate-bounce" style={{ color: theme.colors.text }} /></div>
+                        <h2 className="text-2xl font-bold mb-2" style={{ color: theme.colors.text }}>兌換成功！</h2>
+                        <p className="text-gray-500 text-sm text-center mb-4">感謝您的參與<br/>祝您有美好的一天</p>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const GoldConfetti = () => (<div className="absolute inset-0 pointer-events-none overflow-hidden z-[100]">{Array.from({ length: 80 }).map((_, i) => (<div key={i} className="absolute w-3 h-3 bg-[#cba258] rounded-sm animate-confetti" style={{ left: `${Math.random() * 100}%`, top: `-10px`, backgroundColor: ['#cba258', '#ffd700', '#ffffff', '#b08d55'][Math.floor(Math.random() * 4)], animationDelay: `${Math.random() * 1.5}s`, animationDuration: `${1 + Math.random() * 2}s` }} />))}</div>);
+
+        const ImageWithFallback = ({ src, alt, className, fallbackIcon }) => {
+            const [error, setError] = useState(false);
+            if (error || !src) return <div className={`${className} bg-gray-100 flex items-center justify-center text-gray-300`}><ImageIcon /></div>;
+            return <img src={src} alt={alt} className={className} onError={() => setError(true)} />;
+        };
+
+        const BarcodeImage = ({ code }) => {
+            const [error, setError] = useState(false);
+            const barcodeUrl = `https://barcode.tec-it.com/barcode.ashx?data=${code}&code=Code128&dpi=96&dataseparator=`;
+            if (error) return <CssBarcode />;
+            return <img src={barcodeUrl} alt="Barcode" className="w-full max-w-[240px] h-auto object-contain mix-blend-multiply" onError={() => setError(true)} />;
+        };
+
+        function App() {
+            const [isRolling, setIsRolling] = useState(false);
+            const [diceFace, setDiceFace] = useState(1);
+            const [result, setResult] = useState(null);
+            const [history, setHistory] = useState([]); 
+            const [allHistory, setAllHistory] = useState([]); 
+            const [showModal, setShowModal] = useState(false);
+            const [showRules, setShowRules] = useState(false);
+            const [showCollection, setShowCollection] = useState(false);
+            const [showBag, setShowBag] = useState(false); 
+            const [showConfirmClear, setShowConfirmClear] = useState(false); 
+            const [showSettings, setShowSettings] = useState(false);
+            const [showMemberCard, setShowMemberCard] = useState(false); 
+            const [selectedCoupon, setSelectedCoupon] = useState(null);
+            const [showSuccess, setShowSuccess] = useState(false);
+            const [shareToast, setShareToast] = useState(null); 
+            const [unlockedIds, setUnlockedIds] = useState([]); 
+            const [stars, setStars] = useState(0);
+            const [displayStars, setDisplayStars] = useState(0); 
+            const [mute, setMute] = useState(false);
+            const [currentThemeKey, setCurrentThemeKey] = useState('classic');
+            const [logoClicks, setLogoClicks] = useState(0);
+            const [showGoldEffect, setShowGoldEffect] = useState(false);
+            const [showSplash, setShowSplash] = useState(true);
+            const [flyingStars, setFlyingStars] = useState([]); 
+
+            const theme = THEMES[currentThemeKey];
+            const scrollRef = useRef(null);
+
+            useEffect(() => {
+                if (displayStars !== stars) {
+                    const diff = stars - displayStars;
+                    const step = diff > 0 ? 1 : -1;
+                    const interval = setInterval(() => {
+                        setDisplayStars(prev => {
+                            if (prev === stars) { clearInterval(interval); return prev; }
+                            return prev + step;
+                        });
+                    }, 50);
+                    return () => clearInterval(interval);
+                }
+            }, [stars, displayStars]);
+
+            useEffect(() => {
+                try {
+                    const savedHistory = localStorage.getItem('starbucks_all_history_v18');
+                    if (savedHistory) setAllHistory(JSON.parse(savedHistory));
+                    const savedCollection = localStorage.getItem('starbucks_collection_final_v18');
+                    if (savedCollection) setUnlockedIds(JSON.parse(savedCollection));
+                    const savedStars = localStorage.getItem('starbucks_stars_final_v18');
+                    if (savedStars) { const s = parseInt(savedStars); setStars(s); setDisplayStars(s); }
+                    const savedTheme = localStorage.getItem('starbucks_theme_pref_final_v18');
+                    if (savedTheme && THEMES[savedTheme]) setCurrentThemeKey(savedTheme);
+                } catch (e) {}
+            }, []);
+
+            useEffect(() => {
+                try {
+                    localStorage.setItem('starbucks_all_history_v18', JSON.stringify(allHistory));
+                    localStorage.setItem('starbucks_collection_final_v18', JSON.stringify(unlockedIds));
+                    localStorage.setItem('starbucks_stars_final_v18', stars.toString());
+                    localStorage.setItem('starbucks_theme_pref_final_v18', currentThemeKey);
+                } catch (e) {}
+            }, [allHistory, unlockedIds, stars, currentThemeKey]);
+
+            const play = (type) => { if (!mute) playSound(type); }
+
+            const handleLogoClick = () => {
+                play('click');
+                if (currentThemeKey === 'gold') return;
+                setLogoClicks(prev => {
+                    const newVal = prev + 1;
+                    if (newVal === 5) {
+                        triggerHaptic([50, 50, 50, 200]);
+                        play('gold');
+                        setShowGoldEffect(true);
+                        setCurrentThemeKey('gold');
+                        setStars(prevStars => prevStars + 888);
+                        setShareToast("🎉 恭喜解鎖：黑金尊爵會員！獲得 888 星！");
+                        setTimeout(() => { setShareToast(null); setShowGoldEffect(false); setLogoClicks(0); }, 4000);
+                        return 0;
+                    }
+                    return newVal;
+                });
+            };
+
+            const triggerStarAnimation = () => {
+                play('stars');
+                const id = Date.now();
+                setFlyingStars(prev => [...prev, id]);
+                setTimeout(() => { setFlyingStars(prev => prev.filter(sid => sid !== id)); }, 1000);
+            };
+
+            const rollDice = () => {
+                if (isRolling) return;
+                play('click');
+                triggerHaptic(50);
+                
+                setHistory([]); 
+                setResult(null);
+                setSelectedCoupon(null);
+                setShowSuccess(false);
+                setIsRolling(true);
+                setShowModal(false);
+
+                let counter = 0;
+                const interval = setInterval(() => {
+                counter++;
+                if (counter % 2 === 0) play('roll');
+                if (counter % 3 === 0) triggerHaptic(10);
+                if (counter > 15) {
+                    clearInterval(interval);
+                    finalizeRoll();
+                }
+                }, 100);
+            };
+
+            const finalizeRoll = () => {
+                const weights = [1, 4, 10, 15, 35, 35]; 
+                let selectedIndex = 5;
+                let random = Math.random() * 100;
+                for (let i = 0; i < weights.length; i++) {
+                    if (random < weights[i]) { selectedIndex = i; break; }
+                    random -= weights[i];
+                }
+                const finalFace = selectedIndex + 1;
+                setDiceFace(finalFace);
+                const prize = PRIZES[selectedIndex];
+                
+                setTimeout(() => {
+                    setResult(prize);
+                    setIsRolling(false);
+                    setShowModal(true);
+                    play('win');
+                    triggerHaptic([50, 50, 100]);
+
+                    if (!unlockedIds.includes(prize.id)) setUnlockedIds(prev => [...prev, prize.id]);
+                    
+                    triggerStarAnimation();
+                    setStars(prev => prev + 10);
+
+                    const newCoupon = {
+                        ...prize,
+                        timestamp: new Date().toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                        uuid: Math.random().toString(36).substr(2, 9).toUpperCase(),
+                        isUsed: false
+                    };
+                    
+                    setHistory([newCoupon]); 
+                    setAllHistory(prev => [newCoupon, ...prev]); 
+                    
+                }, 500);
+            };
+
+            const markAsUsed = (uuid) => {
+                play('success');
+                triggerHaptic([100]);
+                setHistory(prev => prev.map(item => item.uuid === uuid ? { ...item, isUsed: true } : item));
+                setAllHistory(prev => prev.map(item => item.uuid === uuid ? { ...item, isUsed: true } : item));
+                setSelectedCoupon(null);
+                setShowSuccess(true);
+                setTimeout(() => { setShowSuccess(false); }, 3000);
+            };
+
+            const requestClearBag = () => {
+                play('click');
+                setShowConfirmClear(true);
+            };
+
+            const performClearBag = () => {
+                play('success');
+                setAllHistory([]);
+                setHistory([]); 
+                triggerHaptic(20);
+                setShowConfirmClear(false);
+                setShareToast("背包已清空");
+                setTimeout(() => setShareToast(null), 2000);
+            };
+
+            const handleShare = async () => {
+                play('click');
+                triggerHaptic(20);
+                const shareUrl = window.location.href;
+                const shareText = `我剛剛在星巴克幸運骰抽中了「${result?.label || '神祕獎品'}」！🎉`;
+                const fullText = `${shareText}\n${shareUrl}`;
+                let hasShared = false;
+                if (navigator.share) {
+                    try { await navigator.share({ title: '星巴克幸運骰', text: shareText, url: shareUrl }); hasShared = true; } 
+                    catch (err) { if (err.name !== 'AbortError') hasShared = false; else return; }
+                }
+                if (!hasShared) {
+                    try { await navigator.clipboard.writeText(fullText); setShareToast("已複製連結！"); } 
+                    catch (err) { setShareToast("分享失敗"); }
+                }
+                setTimeout(() => setShareToast(null), 3000);
+            };
+
+            const RedemptionPage = ({ coupon, onClose, onConfirm }) => {
+                const [timeLeft, setTimeLeft] = useState(600);
+                useEffect(() => { const timer = setInterval(() => { setTimeLeft(prev => (prev > 0 ? prev - 1 : 0)); }, 1000); return () => clearInterval(timer); }, []);
+                const formatTime = (seconds) => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+                return (
+                <div className="absolute inset-0 z-50 bg-white flex flex-col animate-slideUp">
+                    <div className="p-4 pt-8 flex items-center shadow-md" style={{ backgroundColor: theme.colors.primary, color: theme.colors.icon }}>
+                        <button onClick={onClose} className="mr-4 active:opacity-70"><ChevronLeft size={24} /></button>
+                        <h2 className="text-lg font-bold">優惠兌換</h2>
+                    </div>
+                    <div className="flex-1 overflow-y-auto bg-gray-50 p-4 flex flex-col items-center">
+                    <div className="w-full py-2 px-4 rounded-lg mb-4 flex items-center justify-center space-x-2 font-mono font-bold animate-pulse" style={{ backgroundColor: theme.colors.accentBg, color: theme.colors.text }}><Clock size={16} /><span>優惠倒數 {formatTime(timeLeft)}</span></div>
+                    <div className="bg-white w-full rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-6 relative">
+                        <div className="h-2 bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${theme.colors.primary}, ${currentThemeKey === 'gold' ? '#1a1a1a' : '#1e3932'})` }}></div>
+                        <div className="p-6 flex flex-col items-center text-center">
+                            <div className="w-32 h-32 mb-4 rounded-full bg-gray-50 flex items-center justify-center overflow-hidden border-4 border-gray-100 shadow-sm">{coupon.image ? <img src={coupon.image} className="w-full h-full object-cover" /> : <div className={coupon.color}>{coupon.icon}</div>}</div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-2">{coupon.label}</h3>
+                            <p className="text-sm text-gray-500 mb-6 px-4">{coupon.description}</p>
+                            <div className="w-full bg-white p-3 rounded-lg mb-4 relative overflow-hidden border border-dashed border-gray-300"><div className="flex flex-col items-center justify-center min-h-[60px]"><BarcodeImage code={coupon.uuid} /><p className="font-mono text-xs text-center mt-1 tracking-[0.3em] text-gray-600">{coupon.uuid}</p></div></div>
+                            <p className="text-xs text-gray-400">請將此畫面出示給門市夥伴</p>
+                        </div>
+                    </div>
+                    <div className="w-full space-y-3 mt-auto pb-6"><button onClick={() => onConfirm(coupon.uuid)} className="w-full font-bold py-4 rounded-full shadow-md active:scale-95 transition-transform flex items-center justify-center" style={{ backgroundColor: theme.colors.primary, color: theme.colors.icon }}><Sparkles className="w-5 h-5 mr-2 text-yellow-300" />完成兌換 (由夥伴點擊)</button><button onClick={onClose} className="w-full text-gray-500 text-sm py-2 underline">稍後使用</button></div>
+                    </div>
+                </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center font-sans text-gray-800 transition-colors duration-500" style={{ backgroundColor: theme.colors.bg }}>
+                <div className="w-full max-w-md h-[100dvh] flex flex-col shadow-2xl overflow-hidden relative select-none bg-opacity-90"> 
+                    
+                    <FloatingParticles theme={theme} />
+                    {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+                    <Marquee theme={theme} />
+                    {showSuccess && <SuccessAnimation theme={theme} />}
+                    {showGoldEffect && <GoldConfetti />}
+                    {showMemberCard && <MemberCardModal stars={stars} onClose={() => setShowMemberCard(false)} theme={theme} />}
+                    {shareToast && <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-gray-800 bg-opacity-90 text-white px-4 py-2 rounded-full shadow-xl z-[80] text-sm animate-fadeIn flex items-center whitespace-nowrap"><CheckCircle className="w-4 h-4 mr-2 text-green-400" />{shareToast}</div>}
+                    <ConfirmDialog isOpen={showConfirmClear} title="確定要清空背包嗎？" message="此動作無法復原，所有累積的獎品紀錄將會消失。" onConfirm={performClearBag} onCancel={() => setShowConfirmClear(false)} />
+                    {flyingStars.map(id => <FlyingStar key={id} onComplete={() => {}} />)}
+
+                    {/* HEADER: 白底設計 + 按鈕修復 */}
+                    <header className="p-4 pt-8 shadow-md z-50 flex-shrink-0 transition-colors duration-500 flex flex-col gap-2 bg-white relative"> 
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-2 cursor-pointer select-none active:scale-95 transition-transform" onClick={handleLogoClick}>
+                        <Coffee className="w-6 h-6 text-[#006241]" />
+                        <div className="flex flex-col"><span className="text-xs font-light leading-none opacity-80 text-[#006241]">LINE FRIENDS 聯名</span><h1 className="text-xl font-bold tracking-wide leading-none mt-1 text-[#006241]">星巴克幸運骰</h1></div>
+                        </div>
+                        {/* 按鈕區域 - 淺灰色圓形設計 */}
+                        <div className="flex space-x-1 relative z-50">
+                            <button onClick={() => setMute(!mute)} className="text-xs bg-gray-100 p-2 rounded-full flex items-center transition-colors hover:bg-gray-200 text-gray-600 cursor-pointer">{mute ? <VolumeX className="w-4 h-4 opacity-50" /> : <Volume2 className="w-4 h-4" />}</button>
+                            <button onClick={() => { play('click'); setShowSettings(!showSettings); }} className="text-xs bg-gray-100 p-2 rounded-full flex items-center transition-colors hover:bg-gray-200 text-gray-600 cursor-pointer" title="設定"><Palette className="w-4 h-4" /></button>
+                            <button onClick={() => { play('click'); setShowBag(true); }} className="text-xs bg-gray-100 p-2 rounded-full flex items-center transition-colors hover:bg-gray-200 text-gray-600 cursor-pointer" title="背包"><ShoppingBag className="w-4 h-4" /></button>
+                            <button onClick={() => setShowCollection(true)} className="text-xs bg-gray-100 p-2 rounded-full flex items-center transition-colors hover:bg-gray-200 text-gray-600 cursor-pointer" title="圖鑑"><BookOpen className="w-4 h-4" /></button>
+                        </div>
+                    </div>
+                    {showSettings && (
+                        <div className="absolute top-16 right-4 mt-1 bg-white rounded-lg shadow-xl p-3 z-[60] animate-fadeIn border border-gray-100">
+                            <p className="text-xs text-gray-400 mb-2 px-1 font-bold">切換主題</p>
+                            <div className="flex space-x-3">
+                                {Object.entries(THEMES).filter(([key]) => key !== 'gold' || currentThemeKey === 'gold').map(([key, t]) => (
+                                    <button key={key} onClick={() => { setCurrentThemeKey(key); setShowSettings(false); play('click'); }} className={`w-8 h-8 rounded-full border-2 shadow-sm transition-transform hover:scale-110 ${currentThemeKey === key ? 'border-gray-800 ring-2 ring-gray-300' : 'border-transparent'}`} style={{ backgroundColor: t.colors.primary }} title={t.name}></button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex justify-end relative z-40">
+                        <div onClick={() => { play('click'); setShowMemberCard(true); }} className="pl-1 pr-3 py-1 rounded-full shadow-md flex items-center space-x-1 text-xs font-bold border transition-all bg-gray-50 cursor-pointer hover:scale-105 active:scale-95" style={{ color: '#b08d55', borderColor: '#b08d55' }}>
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[#b08d55] text-white -ml-1 shadow-sm"><Star className="w-3 h-3 fill-current" /></div>
+                            <div className="flex flex-col items-start leading-none ml-1"><span className="text-[10px] opacity-70">星星數</span><span className="text-sm">{displayStars}</span></div>
+                            <ChevronRight className="w-3 h-3 opacity-50 ml-1" />
+                        </div>
+                    </div>
+                    </header>
+
+                    <main className={`flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide relative ${currentThemeKey === 'gold' ? 'bg-[#121212]' : ''}`} ref={scrollRef}>
+                    <div className="p-4 flex flex-col items-center space-y-8 pb-20 relative z-10">
+                        <div className="text-center mt-6 space-y-2 w-full">
+                        <div className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold mb-1 shadow-sm animate-bounce-slow" style={{ backgroundColor: theme.colors.accentBg, color: theme.colors.text }}><Sparkles className="w-3 h-3 mr-1" /> NEW! 熊大聯名週邊登場</div>
+                        <h2 className="text-lg md:text-xl font-bold transition-colors" style={{ color: theme.colors.text }}>你的下一杯咖啡<br/>由星運決定</h2>
+                        <p className="text-xs text-gray-500">試手氣，贏取「一年份免費飲品」！</p>
+                        </div>
+                        
+                        <div className="relative w-full flex justify-center py-4">
+                            <CubeDice face={diceFace} isRolling={isRolling} theme={theme} />
+                        </div>
+                        
+                        <button onClick={rollDice} disabled={isRolling} className={`w-full py-4 rounded-full font-bold text-lg shadow-lg transform active:scale-95 transition-all flex items-center justify-center touch-manipulation ${isRolling ? 'bg-gray-400 cursor-not-allowed text-white' : ''}`} style={!isRolling ? { backgroundColor: theme.colors.primary, color: theme.colors.icon } : {}}>{isRolling ? '好運轉動中...' : <><Sparkles className="w-5 h-5 mr-2 animate-pulse text-yellow-300" />立即擲骰子</>}</button>
+                        
+                        {history.length > 0 && (
+                        <div className="w-full mt-6 bg-white rounded-xl shadow-sm border overflow-hidden animate-fadeIn" style={{ borderColor: theme.colors.border }}>
+                            <div className="p-3 border-b flex justify-between items-center bg-gray-50 border-gray-200">
+                                <h3 className="font-bold text-sm text-gray-700 flex items-center"><Gift className="w-4 h-4 mr-2" style={{ color: theme.colors.text }} /> 本次抽獎結果</h3>
+                            </div>
+                            <div className="p-2 space-y-2">
+                            {history.map((item) => (
+                                <div key={item.uuid} className={`flex bg-white border border-l-4 rounded-r-md p-3 shadow-sm relative overflow-hidden transition-opacity ${item.isUsed ? 'border-gray-400 opacity-50' : ''}`} style={{ borderLeftColor: item.isUsed ? undefined : theme.colors.primary }}>
+                                <div className="flex-shrink-0 mr-3 flex items-center justify-center w-12 h-12 rounded-md overflow-hidden bg-gray-50">{item.image ? <ImageWithFallback src={item.image} className="w-full h-full object-cover" fallbackIcon={item.icon}/> : <div className={item.color}>{item.icon}</div>}</div>
+                                <div className="flex-grow">
+                                    <p className={`font-bold text-sm ${item.isUsed ? 'text-gray-500 line-through' : ''}`} style={{ color: item.isUsed ? undefined : theme.colors.text }}>{item.label}</p>
+                                    <p className="text-[10px] text-gray-400 mt-1">{item.isUsed ? '已於 ' + new Date().toLocaleDateString() + ' 兌換' : `期限: ${new Date(Date.now() + 86400000 * 2).toLocaleDateString()}`}</p>
+                                </div>
+                                {!item.isUsed && (
+                                    <button onClick={(e) => { play('click'); e.stopPropagation(); setSelectedCoupon(item); }} className="absolute right-0 top-0 bottom-0 w-12 bg-green-50 hover:bg-green-100 flex items-center justify-center border-l border-dashed border-green-200 cursor-pointer transition-colors group z-10" title="開啟兌換頁">
+                                        <span className="text-[10px] font-bold writing-vertical group-active:scale-95 select-none" style={{ color: theme.colors.text }}>兌換</span>
+                                    </button>
+                                )}
+                                </div>
+                            ))}
+                            </div>
+                        </div>
+                        )}
+                    </div>
+                    </main>
+
+                    {showCollection && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-60 backdrop-blur-sm animate-fadeIn">
+                            <div className="bg-white rounded-xl shadow-xl w-full max-w-[320px] p-6 relative max-h-[80vh] overflow-y-auto">
+                                <button onClick={() => setShowCollection(false)} className="absolute top-4 right-4 text-gray-400"><X className="w-6 h-6" /></button>
+                                <h3 className="text-lg font-bold mb-1 flex items-center" style={{ color: theme.colors.text }}><BookOpen className="w-5 h-5 mr-2" /> 獎品圖鑑</h3>
+                                <p className="text-xs text-gray-500 mb-4">蒐集進度: {unlockedIds.length} / {PRIZES.length}</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {PRIZES.map(prize => {
+                                        const isUnlocked = unlockedIds.includes(prize.id);
+                                        return (
+                                            <div key={prize.id} className={`border rounded-lg p-3 flex flex-col items-center text-center relative ${isUnlocked ? 'bg-white border-gray-200' : 'bg-gray-100 border-gray-100'}`}>
+                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${isUnlocked ? prize.bg : 'bg-gray-200'}`}>
+                                                    {isUnlocked ? (prize.image ? <img src={prize.image} className="w-full h-full object-cover rounded-full" /> : <div className={prize.color}>{prize.icon}</div>) : <Lock className="w-5 h-5 text-gray-400" />}
+                                                </div>
+                                                <p className={`text-xs font-bold mb-1 ${isUnlocked ? 'text-gray-800' : 'text-gray-400'}`}>{prize.label}</p>
+                                                {isUnlocked && <span className="text-[10px] px-2 py-0.5 rounded-full transform scale-90" style={{ backgroundColor: theme.colors.primary, color: theme.colors.icon }}>已獲得</span>}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showBag && (
+                        <BagModal history={allHistory} onClose={() => setShowBag(false)} onSelect={(item) => { setShowBag(false); setSelectedCoupon(item); }} theme={theme} onDelete={requestClearBag} />
+                    )}
+
+                    {showModal && result && (
+                    <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black bg-opacity-60 backdrop-blur-sm animate-fadeIn">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[320px] overflow-hidden transform transition-all scale-100 border-4" style={{ borderColor: theme.colors.border }}>
+                        <div className="p-6 text-center relative overflow-hidden" style={{ backgroundColor: theme.colors.primary, color: theme.colors.icon }}>
+                            <div className="absolute top-0 left-0 w-full h-full opacity-20"><Star className="absolute top-2 left-2 w-12 h-12 text-white rotate-12" /><Star className="absolute bottom-2 right-2 w-16 h-16 text-white -rotate-12" /></div>
+                            <div className="relative z-10 flex justify-center mb-2">
+                            {result.image ? <div className="p-1 bg-white rounded-lg shadow-lg ring-4" style={{ '--tw-ring-color': theme.colors.primaryHover }}><ImageWithFallback src={result.image} className="w-32 h-32 object-cover rounded-md" fallbackIcon={result.icon} /></div> : <div className="bg-white p-4 rounded-full shadow-lg ring-4" style={{ '--tw-ring-color': theme.colors.primaryHover }}><div className={result.color}>{result.icon}</div></div>}
+                            </div>
+                            <h3 className="text-xl font-bold mt-2 relative z-10">{result.id === 1 ? '✨ 超級幸運 ✨' : '恭喜獲得'}</h3>
+                        </div>
+                        <div className="p-6 text-center space-y-4">
+                            <h4 className={`text-xl font-bold ${result.color}`}>{result.label}</h4>
+                            <p className="text-sm text-gray-600 leading-relaxed">{result.description}</p>
+                            <div className="flex space-x-2">
+                                <button onClick={handleShare} className="flex-1 bg-blue-500 text-white py-3 rounded-lg font-bold active:bg-blue-600 transition-colors shadow-lg flex items-center justify-center"><Share2 className="w-4 h-4 mr-2" /> 分享</button>
+                                <button onClick={() => setShowModal(false)} className="flex-[2] text-white py-3 rounded-lg font-bold transition-colors shadow-lg touch-manipulation" style={{ backgroundColor: theme.colors.primary }}>放入背包</button>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    )}
+
+                    {showRules && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn">
+                        <div className="bg-white rounded-xl shadow-xl w-full max-w-[320px] p-6 relative">
+                        <button onClick={() => setShowRules(false)} className="absolute top-4 right-4 text-gray-400"><X className="w-6 h-6" /></button>
+                        <h3 className="text-lg font-bold mb-4 border-b pb-2" style={{ color: theme.colors.text }}>活動辦法</h3>
+                        <div className="space-y-2 text-sm text-gray-600">
+                            <p>1. 點擊「立即擲骰子」即可參加聯名抽獎。</p>
+                            <p>2. 實體獎品請憑券至門市兌換。</p>
+                            <p className="text-xs text-gray-400 mt-4 border-t pt-2">小提示：連續點擊左上角標題 Logo 5次，或許會有好事發生？</p>
+                        </div>
+                        </div>
+                    </div>
+                    )}
+                    
+                    {selectedCoupon && <RedemptionPage coupon={selectedCoupon} onClose={() => setSelectedCoupon(null)} onConfirm={markAsUsed} />}
+                </div>
+                </div>
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
